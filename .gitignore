@@ -9,6 +9,4 @@ wheels/
 # Virtual environments
 .venv
 
-doorphones_examples
-
 .coverage
