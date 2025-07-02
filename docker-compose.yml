@@ -4,9 +4,8 @@ services:
     ports:
       - "1883:1883"
     volumes:
-      - ./config:/mosquitto/config:rw
-      - ./data:/mosquitto/data:rw
-      - ./log:/mosquitto/log:rw
+      - ./mosquitto_config:/mosquitto/config:rw
+      - mosquitto_data:/mosquitto/data:rw
     restart: unless-stopped
 
   intercom:
@@ -15,12 +14,49 @@ services:
       - "8000:8000"
     depends_on:
       - mqtt
-    command: uv run python app/main.py
+    command: uv run python main.py
+    volumes:
+      - ./doorphones:/app/doorphones
+
+  notifications:
+    build:
+      context: "../MQTTnotifications"
+    ports:
+      - "8001:8001"
+    depends_on:
+      intercom:
+        condition: service_started
+      clickhouse:
+        condition: service_healthy
+    command: uv run python main.py
+    environment:
+      CLICKHOUSE_HOST: clickhouse
+      CLICKHOUSE_PORT: 8123
+      CLICKHOUSE_USER: default
+      CLICKHOUSE_PASSWORD: "12345"
+
+  clickhouse:
+    image: clickhouse/clickhouse-server
+    ports:
+      - "8123:8123"
+    volumes:
+      - clickhouse_data:/var/lib/clickhouse
+    environment:
+      - CLICKHOUSE_DB=default
+      - CLICKHOUSE_USER=default
+      - CLICKHOUSE_PASSWORD=12345
+    healthcheck:
+      test: [ "CMD", "clickhouse-client", "--user", "default", "--password", "12345", "--query", "SELECT 1" ]
+      interval: 2s
+      timeout: 10s
+      retries: 20
+      start_period: 1s
+    restart: unless-stopped
 
 volumes:
-  config:
-  data:
-  log:
+  mosquitto_config:
+  mosquitto_data:
+  clickhouse_data:
 
 networks:
   default:

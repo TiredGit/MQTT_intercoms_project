@@ -5,17 +5,118 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Домофон</title>
     <link rel="stylesheet" href="/static/main.css">
+    <link rel="icon" href="/static/door_phone.png">
 </head>
 <body>
+<div class="page-wrapper">
     <div class="container">
         <div class="content-box">
             <h1 class="title">Домофон</h1>
             <div class="buttons-container">
-                <button class="btn open-door">Открыть дверь</button>
-                <button class="btn call">Позвонить</button>
-                <button class="btn face-entry">Вход по лицу</button>
+                <button onclick="showModal('key-modal')" class="btn open-door">Открыть дверь (ключ)</button>
+                <button onclick="showModal('call-modal')" class="btn call">Позвонить</button>
+            </div>
+
+            {% if error_message %}
+            <div class="error-message">
+                {{ error_message }}
+            </div>
+            {% endif %}
+
+            <div class="status-message">
+                {% if door_phones[current_mac]['door_status'] == "open" %}
+                    <span class="status-open">ДВЕРЬ ОТКРЫТА</span>
+                {% else %}
+                    <span class="status-closed">ДВЕРЬ ЗАКРЫТА</span>
+                {% endif %}
             </div>
         </div>
     </div>
+
+    <div class="container selector-container">
+        <div class="content-box selector-box">
+            <h3 class="selector-title">Выбор домофона</h3>
+            <div class="current-mac">MAC: {{ current_mac }}</div>
+            <form method="post" action="/select-doorphone">
+                <select name="new_mac" onchange="this.form.submit()" class="selector-dropdown">
+                    {% for mac in door_phones.keys() %}
+                        <option value="{{ mac }}" {% if mac == current_mac %}selected{% endif %}>{{ mac }}</option>
+                    {% endfor %}
+                </select>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Модальное окно для ключа -->
+    <div id="key-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideModal('key-modal')">&times;</span>
+            <h2>Код ключа</h2>
+            <form method="post" action="/{{ current_mac }}/open-door-key">
+                <input type="password" id="key-code" name="code" placeholder="Введите код">
+                <div class="modal-single-button">
+                    <button type="submit" class="btn open-door">Открыть</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+
+    <!-- Модальное окно для звонка -->
+    <div id="call-modal" class="modal">
+        <div class="modal-content">
+            <span class="close" onclick="hideModal('call-modal')">&times;</span>
+            <h2>Номер квартиры:</h2>
+            <form method="post" action="/{{ current_mac }}/call">
+                <input type="text" id="apartment-number" name="apartment_number" placeholder="Введите номер">
+                <div class="modal-single-button">
+                    <button type="submit" class="btn call">Позвонить</button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <script>
+        function showModal(modalId) {
+            document.getElementById(modalId).style.display = 'block';
+        }
+
+        function hideModal(modalId) {
+            document.getElementById(modalId).style.display = 'none';
+        }
+
+        // Закрытие при клике вне модального окна
+        window.onclick = function(event) {
+            if (event.target.className === 'modal') {
+                event.target.style.display = 'none';
+            }
+        }
+
+        async function fetchDoorStatus() {
+        try {
+            const response = await fetch('/{{current_mac}}/status');
+            const data = await response.json();
+            const statusElement = document.querySelector('.status-message');
+            if (data.door_status === 'open') {
+                statusElement.innerHTML = '<span class="status-open">ДВЕРЬ ОТКРЫТА</span>';
+                const err = document.querySelector('.error-message');
+                if (err) err.remove();
+                const url = new URL(window.location);
+                if (url.searchParams.has('error_message')) {
+                    url.searchParams.delete('error_message');
+                    window.history.replaceState({}, document.title, url.toString());}
+            } else {
+                statusElement.innerHTML = '<span class="status-closed">ДВЕРЬ ЗАКРЫТА</span>';
+            }
+        } catch (err) {
+            console.error("Ошибка получения статуса двери:", err);
+        }
+    }
+
+    // Обновлять статус
+    setInterval(fetchDoorStatus, 2000);
+    </script>
+</div>
 </body>
 </html>

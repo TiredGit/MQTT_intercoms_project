@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Статус звонка</title>
+    <link rel="stylesheet" href="/static/call_new.css">
+    <link rel="icon" href="/static/door_phone.png">
+</head>
+<body>
+    <div class="container">
+        <div class="content-box">
+            <h2>Идет звонок в квартиру {{ apartment_number }}</h2>
+            <p>Пожалуйста, ожидайте ответа...</p>
+            <p>Конец звонка через <span id="countdown">30</span> секунд</p>
+            <form method="post" action="/{{ current_mac }}/stop-call">
+                <input type="submit" value="Завершить звонок" class="custom-button">
+            </form>
+        </div>
+    </div>
+
+    <script>
+        let countdown = 30;
+        const countdownElement = document.getElementById("countdown");
+
+        const timer = setInterval(() => {
+            countdown--;
+            countdownElement.textContent = countdown;
+
+            if (countdown <= 0) {
+                clearInterval(timer);
+            }
+        }, 1000);
+
+
+        // Проверка статуса звонка
+    const checkStatus = setInterval(async () => {
+        const res = await fetch(`/{{ current_mac }}/call-status-update`);
+        const data = await res.json();
+
+        if (data.status !== "calling") {
+            clearInterval(checkStatus);
+            window.location.href = "/{{ current_mac }}";  // Возврат на главную
+        }
+    }, 1000);
+
+    // const mac = "{{ current_mac }}";
+    //
+    //     // Когда пользователь закрывает вкладку или переходит по ссылке...
+    //     window.addEventListener("beforeunload", () => {
+    //     // Отправляем сигнал на бэкенд
+    //     navigator.sendBeacon(`/${mac}/stop-call`, "");
+    //     });
+    </script>
+</body>
+</html>
